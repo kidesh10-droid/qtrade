@@ -1,7 +1,3 @@
-import { Geist } from 'next/font/google'
-
-const geist = Geist({ subsets: ['latin'] })
-
 export const metadata = {
   title: 'QTRADE — AI 주식 분석',
   description: '국내+미국 주식 AI 분석 플랫폼',
