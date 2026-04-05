@@ -71,7 +71,7 @@ RSI(14): ${rsi} | MA5: ${s5} | MA20: ${s20}
 한줄 총평`
 
   try {
-    const res = await fetch(
+    const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
@@ -82,12 +82,20 @@ RSI(14): ${rsi} | MA5: ${s5} | MA20: ${s20}
         })
       }
     )
-    const json = await res.json()
+    const json = await geminiRes.json()
+
+    if (json.error) {
+      return NextResponse.json({ text: '오류코드 ' + json.error.code + ': ' + json.error.message })
+    }
+
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-    if (!text) return NextResponse.json({ text: '분석 결과를 가져오지 못했습니다.' })
+    if (!text) {
+      return NextResponse.json({ text: '응답 디버그: ' + JSON.stringify(json).slice(0, 300) })
+    }
+
     const clean = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim()
     return NextResponse.json({ text: clean })
   } catch(e) {
-    return NextResponse.json({ text: '오류가 발생했습니다: ' + e.message })
+    return NextResponse.json({ text: '오류: ' + e.message })
   }
 }
