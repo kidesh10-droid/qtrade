@@ -79,6 +79,33 @@ function CandleChart(props){
   );
 }
 
+function AIResult(props) {
+  var text = props.text;
+  if (!text) return null;
+  var lines = text.split("\n");
+  return React.createElement("div", {
+    style: {
+      background: "rgba(167,139,250,0.05)",
+      border: "1px solid rgba(167,139,250,0.15)",
+      borderRadius: 10,
+      padding: 20,
+      lineHeight: 1.9,
+      fontSize: 13,
+      wordBreak: "break-word",
+      whiteSpace: "pre-wrap"
+    }
+  }, lines.map(function(line, i) {
+    if (!line.trim()) return React.createElement("div", { key: i, style: { height: 8 } });
+    if (line.startsWith("✅") || line.startsWith("📈") || line.startsWith("💰") || line.startsWith("🎯") || line.startsWith("🛡") || line.startsWith("⚡") || line.startsWith("⚠") || line.startsWith("🏆")) {
+      return React.createElement("div", { key: i, style: { fontWeight: 700, fontSize: 14, color: "#A78BFA", marginTop: 16, marginBottom: 4 } }, line);
+    }
+    if (line.startsWith("•") || line.startsWith("-")) {
+      return React.createElement("div", { key: i, style: { paddingLeft: 16, color: "rgba(255,255,255,0.85)", marginTop: 3 } }, line);
+    }
+    return React.createElement("div", { key: i, style: { color: "rgba(255,255,255,0.8)" } }, line);
+  }));
+}
+
 export default function Home(){
   var ms=useState("KR"),market=ms[0],setMarket=ms[1];
   var ss=useState(DEFAULT_STOCKS.KR[0]),stock=ss[0],setStock=ss[1];
@@ -107,10 +134,10 @@ export default function Home(){
   var C={g:"#00E5A0",r:"#FF4D6D",gold:"#FFD700",p:"#A78BFA",m:"rgba(255,255,255,0.3)",b:"rgba(255,255,255,0.08)"};
   var card={background:"rgba(255,255,255,0.04)",borderRadius:10,border:"1px solid rgba(255,255,255,0.08)",padding:14};
 
-  var loadRealData=useCallback(async function(sym){
+  var loadRealData=useCallback(async function(sym,mkt){
     setDataLoading(true);setRealData(null);setIsRealData(false);
     try{
-      var r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"quote",symbol:sym})});
+      var r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"quote",symbol:sym,market:mkt})});
       var json=await r.json();
       if(json.rows&&json.rows.length>0){
         var parsed=json.rows.map(function(row){return{date:new Date(row.date),o:row.o,h:row.h,l:row.l,c:row.c,v:row.v};});
@@ -120,7 +147,7 @@ export default function Home(){
     setDataLoading(false);
   },[]);
 
-  useEffect(function(){loadRealData(stock.sym);},[stock.sym]);
+  useEffect(function(){loadRealData(stock.sym,market);},[stock.sym,market]);
 
   var searchTimer=useRef(null);
   var doSearch=async function(kw){
@@ -139,7 +166,7 @@ export default function Home(){
   };
   var selectResult=function(r){
     var newStock={sym:r.sym,name:r.name,sector:r.type||"—",base:100};
-    var newMarket=r.region&&(r.region.includes("United States")||r.region.includes("NASDAQ")||r.region.includes("NYSE"))?"US":"KR";
+    var newMarket=r.region&&(r.region.includes("United States")||r.region.includes("NASDAQ")||r.region.includes("NYSE")||r.region.includes("NMS")||r.region.includes("NGM"))?"US":"KR";
     setMarket(newMarket);setStock(newStock);setQuery("");setSearchResults([]);setShowSearch(false);setAiText("");setBtR(null);
   };
   var switchMarket=function(m){setMarket(m);setStock(DEFAULT_STOCKS[m][0]);setAiText("");setBtR(null);setRealData(null);};
@@ -160,7 +187,7 @@ export default function Home(){
     React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)",flexWrap:"wrap"}},
       React.createElement("div",{style:{fontSize:20,fontWeight:700,letterSpacing:3,color:C.g}},"◈ QTRADE"),
       React.createElement("div",{style:{fontSize:10,color:C.m,letterSpacing:2}},"AI STOCK PLATFORM"),
-      React.createElement("div",{style:{position:"relative",flex:1,maxWidth:360,margin:"0 8px"}},
+      React.createElement("div",{style:{position:"relative",flex:1,maxWidth:400,margin:"0 8px"}},
         React.createElement("input",{value:query,onChange:onQueryChange,onFocus:function(){setShowSearch(true);},onBlur:function(){setTimeout(function(){setShowSearch(false);},200);},placeholder:"🔍 종목 검색 (예: AAPL, Tesla, 삼성...)",style:{width:"100%",padding:"7px 14px",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,color:"#fff",fontFamily:"inherit",fontSize:12,outline:"none"}}),
         showSearch&&(searching||searchResults.length>0)?React.createElement("div",{style:{position:"absolute",top:"100%",left:0,right:0,background:"#0f1a2e",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,marginTop:4,zIndex:100,maxHeight:300,overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}},
           searching?React.createElement("div",{style:{padding:"12px 14px",color:C.m,fontSize:12}},"검색 중..."):
@@ -216,14 +243,15 @@ export default function Home(){
         ),
         tab==="backtest"&&React.createElement("div",{style:card},
           React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}},
-            React.createElement("div",null,React.createElement("div",{style:{fontSize:15,fontWeight:600}},"백테스팅 시뮬레이션"),React.createElement("div",{style:{fontSize:11,color:C.m,marginTop:4}},"기술적 신호 기반 · 초기자금 1,000만원")),
+            React.createElement("div",null,React.createElement("div",{style:{fontSize:15,fontWeight:600}},"백테스팅 시뮬레이션"),React.createElement("div",{style:{fontSize:11,color:C.m,marginTop:4}},"기술적 신호 기반 · 초기자금 1,000만원 · 50% 분할매매")),
             React.createElement("button",{onClick:function(){setBtR(runBacktest(data,sigs));},style:{padding:"9px 22px",borderRadius:8,border:"none",background:"linear-gradient(135deg,#00E5A0,#00B4D8)",color:"#000",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"▶ 실행")
           ),
           btR?React.createElement(React.Fragment,null,
-            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}},[["전략 수익률",btR.roi.toFixed(2)+"%",btR.roi>=0?C.g:C.r],["Buy & Hold",btR.bh.toFixed(2)+"%",btR.bh>=0?C.g:C.r],["최종자산",(btR.fin/10000).toFixed(0)+"만원",C.gold],["거래횟수",btR.trades.length+"회",C.p]].map(function(it){return React.createElement("div",{key:it[0],style:{background:"rgba(255,255,255,0.04)",borderRadius:9,padding:14,textAlign:"center"}},React.createElement("div",{style:{fontSize:10,color:C.m}},it[0]),React.createElement("div",{style:{fontSize:20,fontWeight:700,color:it[2],marginTop:6}},it[1]));})),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}},[["전략 수익률",btR.roi.toFixed(2)+"%",btR.roi>=0?C.g:C.r],["Buy & Hold",btR.bh.toFixed(2)+"%",btR.bh>=0?C.g:C.r],["최종자산",(btR.fin/10000).toFixed(0)+"만원",C.gold],["거래횟수",btR.trades.length+"회",C.p]].map(function(it){return React.createElement("div",{key:it[0],style:{background:"rgba(255,255,255,0.04)",borderRadius:9,padding:14,textAlign:"center"}},React.createElement("div",{style:{fontSize:10,color:C.m}},it[0]),React.createElement("div",{style:{fontSize:20,fontWeight:700,color:it[2],marginTop:6}},it[1]));})
+            ),
             React.createElement("div",{style:{maxHeight:260,overflowY:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
               React.createElement("thead",null,React.createElement("tr",null,["날짜","액션","사유","수량","가격"].map(function(h){return React.createElement("th",{key:h,style:{padding:"5px 8px",textAlign:"left",color:C.m,fontWeight:400,borderBottom:"1px solid rgba(255,255,255,0.08)"}},h);}))),
-              React.createElement("tbody",null,btR.trades.map(function(t,i){return React.createElement("tr",{key:i},React.createElement("td",{style:{padding:"6px 8px",color:C.m}},t.date?t.date.toLocaleDateString("ko-KR"):"—"),React.createElement("td",{style:{padding:"6px 8px",color:t.action==="매수"?C.g:C.r}},t.action),React.createElement("td",{style:{padding:"6px 8px"}},t.r),React.createElement("td",{style:{padding:"6px 8px"}},t.qty?t.qty.toLocaleString():"—"),React.createElement("td",{style:{padding:"6px 8px"}},fmt(t.price)));}))
+              React.createElement("tbody",null,btR.trades.map(function(t,i){return React.createElement("tr",{key:i},React.createElement("td",{style:{padding:"6px 8px",color:C.m}},t.date?t.date.toLocaleDateString("ko-KR"):"—"),React.createElement("td",{style:{padding:"6px 8px",color:t.action==="매수"?C.g:C.r}},t.action),React.createElement("td",{style:{padding:"6px 8px"}},t.r),React.createElement("td",{style:{padding:"6px 8px"}},t.qty?t.qty.toLocaleString():"—"),React.createElement("td",{style:{padding:"6px 8px"}},fmt(t.price)));})
             ))
           ):React.createElement("div",{style:{textAlign:"center",padding:60,color:C.m}},"▶ 실행 버튼을 눌러 시작하세요")
         ),
@@ -238,14 +266,18 @@ export default function Home(){
             ))
           );
         })(),
-        tab==="ai"&&React.createElement("div",{style:card},
+        tab==="ai"&&React.createElement("div",{style:Object.assign({},card,{marginBottom:20})},
           React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}},
-            React.createElement("div",null,React.createElement("div",{style:{fontSize:15,fontWeight:600}},"🤖 Claude AI 기술적 분석"),React.createElement("div",{style:{fontSize:11,color:C.m,marginTop:4}},"RSI · 이동평균 · 볼린저밴드 · 매매신호 종합")),
-            React.createElement("button",{onClick:doAI,disabled:aiLoad,style:{padding:"9px 22px",borderRadius:8,border:"none",background:aiLoad?"rgba(167,139,250,0.25)":"linear-gradient(135deg,#A78BFA,#6366f1)",color:"#fff",fontWeight:700,cursor:aiLoad?"not-allowed":"pointer",fontFamily:"inherit",fontSize:13}},aiLoad?"⚙️ 분석 중...":"분석 시작")
+            React.createElement("div",null,
+              React.createElement("div",{style:{fontSize:15,fontWeight:600}},"🤖 AI 주식 분석"),
+              React.createElement("div",{style:{fontSize:11,color:C.m,marginTop:4}},"목표가 · 손절가 · 매수포인트 · 기술적 지표 종합 분석")
+            ),
+            React.createElement("button",{onClick:doAI,disabled:aiLoad,style:{padding:"10px 26px",borderRadius:8,border:"none",background:aiLoad?"rgba(167,139,250,0.25)":"linear-gradient(135deg,#A78BFA,#6366f1)",color:"#fff",fontWeight:700,cursor:aiLoad?"not-allowed":"pointer",fontFamily:"inherit",fontSize:13}},aiLoad?"⚙️ 분석 중...":"🔍 분석 시작")
           ),
-          aiText?React.createElement("div",{style:{background:"rgba(167,139,250,0.05)",border:"1px solid rgba(167,139,250,0.15)",borderRadius:10,padding:18,lineHeight:1.8,fontSize:13}},aiText.split("\n").map(function(line,i){if(line.startsWith("**")&&line.endsWith("**"))return React.createElement("div",{key:i,style:{fontWeight:700,color:C.p,marginTop:10}},line.replace(/\*\*/g,""));return React.createElement("div",{key:i,dangerouslySetInnerHTML:{__html:line.replace(/\*\*(.+?)\*\*/g,"<strong style=\"color:#FFD700\">$1</strong>")||"\u00a0"}});})):
-          React.createElement("div",{style:{textAlign:"center",padding:60,color:C.m}},aiLoad?"분석 중...":"분석 시작 버튼을 눌러주세요"),
-          React.createElement("div",{style:{marginTop:12,padding:10,background:"rgba(255,255,255,0.02)",borderRadius:8,fontSize:11,color:"rgba(255,255,255,0.2)"}},"⚠️ 기술적 지표 기반 참고용입니다. 실제 투자는 본인 책임입니다.")
+          aiLoad&&React.createElement("div",{style:{textAlign:"center",padding:40,color:C.p}},"AI가 "+stock.name+" 분석 중입니다... 잠시만 기다려주세요"),
+          aiText&&!aiLoad&&React.createElement(AIResult,{text:aiText}),
+          !aiText&&!aiLoad&&React.createElement("div",{style:{textAlign:"center",padding:60,color:C.m}},"분석 시작 버튼을 눌러주세요"),
+          React.createElement("div",{style:{marginTop:14,padding:10,background:"rgba(255,255,255,0.02)",borderRadius:8,fontSize:11,color:"rgba(255,255,255,0.2)"}},"⚠️ 기술적 지표 기반 참고용입니다. 실제 투자 결정은 본인 책임입니다.")
         )
       )
     )
