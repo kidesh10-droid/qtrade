@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 export async function POST(req) {
   const body = await req.json()
 
-  // 📈 주가 데이터 — Yahoo Finance
   if (body.action === 'quote') {
     try {
       const sym = body.market === 'KR' ? body.symbol + '.KS' : body.symbol
@@ -24,7 +23,6 @@ export async function POST(req) {
     } catch(e) { return NextResponse.json({ error: e.message }) }
   }
 
-  // 🔍 종목 검색 — Yahoo Finance
   if (body.action === 'search') {
     try {
       const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(body.keyword)}&quotesCount=8&newsCount=0`
@@ -40,45 +38,55 @@ export async function POST(req) {
     } catch(e) { return NextResponse.json({ results: [] }) }
   }
 
-  // 🤖 AI 분석 — Gemini
   const { name, sym, market, price, chg, rsi, signal, recent5, s5, s20, bbU, bbL } = body
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ text: 'GEMINI_API_KEY를 Vercel 환경변수에 추가해주세요.' })
 
-  const prompt = `당신은 전문 주식 트레이더이자 기술적 분석가입니다. 아래 데이터를 바탕으로 실전 매매에 바로 활용할 수 있는 분석을 한국어로 제공하세요.
+  const prompt = `당신은 친절한 주식 전문가입니다. 주식을 처음 시작하는 초보 투자자도 이해할 수 있게 쉽고 명확하게 설명해주세요. 전문 용어는 괄호 안에 쉽게 풀어서 설명하세요.
 
-종목: ${name}(${sym}) / ${market === 'KR' ? '국내' : '미국'} 시장
-현재가: ${price} | 5일변동: ${chg}%
-RSI(14): ${rsi} | MA5: ${s5} | MA20: ${s20}
-볼린저 상단: ${bbU} / 하단: ${bbL}
-최근신호: ${signal} | 최근5일 종가: ${recent5}
+분석할 종목 정보:
+- 종목명: ${name} (${sym})
+- 시장: ${market === 'KR' ? '한국 주식시장' : '미국 주식시장'}
+- 현재 주가: ${price}
+- 최근 5일 변동: ${chg}%
+- RSI 지표: ${rsi} (0~30 과매도 매수기회, 70~100 과매수 매도고려, 30~70 중립)
+- 5일 이동평균: ${s5}
+- 20일 이동평균: ${s20}
+- 볼린저밴드 상단: ${bbU} / 하단: ${bbL}
+- 최근 매매 신호: ${signal}
+- 최근 5일 종가: ${recent5}
 
-반드시 아래 형식으로만 답하세요:
+아래 형식으로 빠짐없이 모두 작성하세요. 각 항목을 절대 생략하지 마세요:
 
-[📊 기술적 지표 분석]
-- RSI: (현재값 해석)
-- 이동평균: (MA5 vs MA20 관계 및 추세)
-- 볼린저밴드: (현재 위치 및 변동성)
-- 추세: (상승/하락/횡보 + 강도)
+✅ 지금 이 주식 상태는?
+(초보자도 이해할 수 있게 현재 상황을 2~3문장으로 쉽게 설명)
 
-[🎯 매수 포인트]
-- 1차 매수가: (구체적 가격)
-- 2차 매수가: (구체적 가격)
-- 매수 근거: (기술적 근거)
+📈 기술적 지표 해석
+- RSI ${rsi}: (과매수/과매도/중립 여부와 의미를 쉽게 설명)
+- 이동평균선: (5일선과 20일선 관계, 상승/하락 추세 쉽게 설명)
+- 볼린저밴드: (현재 주가 위치로 본 매매 시점 쉽게 설명)
 
-[🚀 목표 주가]
-- 1차 목표가: (구체적 가격, 수익률%)
-- 2차 목표가: (구체적 가격, 수익률%)
+💰 매수 추천 가격
+- 1차 매수가: ${price}의 약 2~3% 아래 가격 (숫자로 명시)
+- 2차 매수가: ${price}의 약 5% 아래 가격 (숫자로 명시)
+- 이유: (왜 이 가격에 사면 좋은지 쉽게 설명)
 
-[🛡️ 손절가]
-- 손절가: (구체적 가격)
-- 손절 근거: (기술적 근거)
+🎯 목표 주가 (팔아야 할 가격)
+- 1차 목표가: ${price}의 약 5~7% 위 가격 (숫자로 명시, 수익률 표시)
+- 2차 목표가: ${price}의 약 10~15% 위 가격 (숫자로 명시, 수익률 표시)
 
-[⚡ 단기 매매 전략]
-매수 / 매도 / 관망 중 하나 선택 + 핵심 전략 2~3줄
+🛡️ 손절가 (손해를 줄이기 위해 팔아야 할 가격)
+- 손절가: ${price}의 약 5~7% 아래 가격 (숫자로 명시)
+- 이유: (왜 이 가격 아래면 손절해야 하는지 쉽게 설명)
 
-[🏆 종합 점수: X/10]
-총평 한줄`
+⚡ 지금 어떻게 해야 할까요?
+매수 / 매도 / 관망 중 하나를 선택하고 초보자도 이해할 수 있게 행동 지침 3줄 작성
+
+⚠️ 주의할 점
+(이 종목 투자 시 조심해야 할 리스크 2가지를 쉽게 설명)
+
+🏆 종합 평가: X/10점
+(한 줄 총평)`
 
   try {
     const geminiRes = await fetch(
@@ -88,21 +96,14 @@ RSI(14): ${rsi} | MA5: ${s5} | MA20: ${s20}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 3000 }
         })
       }
     )
     const json = await geminiRes.json()
-
-    if (json.error) {
-      return NextResponse.json({ text: '오류 ' + json.error.code + ': ' + json.error.message })
-    }
-
+    if (json.error) return NextResponse.json({ text: '오류 ' + json.error.code + ': ' + json.error.message })
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-    if (!text) {
-      return NextResponse.json({ text: '응답 디버그: ' + JSON.stringify(json).slice(0, 300) })
-    }
-
+    if (!text) return NextResponse.json({ text: '응답 없음: ' + JSON.stringify(json).slice(0, 200) })
     const clean = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim()
     return NextResponse.json({ text: clean })
   } catch(e) {
