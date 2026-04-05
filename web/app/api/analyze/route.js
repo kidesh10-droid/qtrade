@@ -45,48 +45,57 @@ export async function POST(req) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ text: 'GEMINI_API_KEY를 Vercel 환경변수에 추가해주세요.' })
 
-  const prompt = `당신은 전문 주식 기술적 분석가입니다.
+  const prompt = `당신은 전문 주식 트레이더이자 기술적 분석가입니다. 아래 데이터를 바탕으로 실전 매매에 바로 활용할 수 있는 분석을 한국어로 제공하세요.
+
 종목: ${name}(${sym}) / ${market === 'KR' ? '국내' : '미국'} 시장
 현재가: ${price} | 5일변동: ${chg}%
 RSI(14): ${rsi} | MA5: ${s5} | MA20: ${s20}
 볼린저 상단: ${bbU} / 하단: ${bbL}
-최근신호: ${signal} | 최근5일: ${recent5}
+최근신호: ${signal} | 최근5일 종가: ${recent5}
 
-다음 형식으로 한국어로 분석하세요:
+반드시 아래 형식으로만 답하세요:
 
-[현재 기술적 상태]
-2~3문장으로 설명
+[📊 기술적 지표 분석]
+- RSI: (현재값 해석)
+- 이동평균: (MA5 vs MA20 관계 및 추세)
+- 볼린저밴드: (현재 위치 및 변동성)
+- 추세: (상승/하락/횡보 + 강도)
 
-[단기 매매 의견]
-매수 또는 매도 또는 관망 선택 후 근거 설명
+[🎯 매수 포인트]
+- 1차 매수가: (구체적 가격)
+- 2차 매수가: (구체적 가격)
+- 매수 근거: (기술적 근거)
 
-[주요 가격대]
-지지선: 가격
-저항선: 가격
+[🚀 목표 주가]
+- 1차 목표가: (구체적 가격, 수익률%)
+- 2차 목표가: (구체적 가격, 수익률%)
 
-[리스크 요인]
-1~2가지
+[🛡️ 손절가]
+- 손절가: (구체적 가격)
+- 손절 근거: (기술적 근거)
 
-[종합 점수: X/10]
-한줄 총평`
+[⚡ 단기 매매 전략]
+매수 / 매도 / 관망 중 하나 선택 + 핵심 전략 2~3줄
+
+[🏆 종합 점수: X/10]
+총평 한줄`
 
   try {
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
-?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
         })
       }
     )
     const json = await geminiRes.json()
 
     if (json.error) {
-      return NextResponse.json({ text: '오류코드 ' + json.error.code + ': ' + json.error.message })
+      return NextResponse.json({ text: '오류 ' + json.error.code + ': ' + json.error.message })
     }
 
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text
